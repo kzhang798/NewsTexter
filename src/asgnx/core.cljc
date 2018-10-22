@@ -703,12 +703,12 @@
 (defn set-image [users {:keys [args user-id]}]
   (if (contains? user-id users)
     (if (= 1 (count args))
-      (if (or (= "yes" (string/lower-case (first args)))
-              (= "no" (string/lower-case (first args))))
-        [[(action-insert [:users user-id :image]
-                        (string/lower-case first args))]
-         (str user-id " has changed image setting.")])
-      [[] "You must enter 'yes' or 'no'."])
+      (cond
+        (= "yes" (string/lower-case (first args))) [[(action-insert [:users user-id :image] true)]
+                                                    (str user-id " has changed image setting.")]
+        (= "no" (string/lower-case (first args))) [[(action-insert [:users user-id :image] false)]
+                                                   (str user-id " has changed image setting.")]
+        :else [[] "You must enter 'yes' or 'no'."]))
     [[] "User is not registered."]))
 
 
