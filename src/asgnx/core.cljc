@@ -475,14 +475,6 @@
   (fn [_ & args]
     [[] (apply f args)]))
 
-
-(def routes {"default"  (stateless (fn [& args] "Unknown command."))
-             "welcome"  (stateless welcome)
-             "homepage" (stateless homepage)
-             "office"   (stateless office-hours)
-             "expert"   add-expert
-             "ask"      ask-experts
-             "answer"   answer-question})
 ;; Asgn 3.
 ;;
 ;; @Todo: Add mappings of the cmds "expert", "ask", and "answer" to
@@ -503,13 +495,35 @@
   (let [user-id (:user-id pmsg)]
     (get! state-mgr [:conversations user-id])))
 
+;; Functions for newstexter
+(defn users-query [state-mgr pmsg]
+  (list! state-mgr [:users]))
+
+(defn user-info-query [state-mgr pmsg]
+  (let [user-id  (:user-id pmsg)]
+    (get! state-mgr [:users user-id])))
+
+(defn all-info-query [state-mgr pmsg]
+  state-mgr)
 
 ;; Don't edit!
 (def queries
   {"expert" experts-on-topic-query
    "ask"    experts-on-topic-query
-   "answer" conversations-for-user-query})
+   "answer" conversations-for-user-query
+   "register" users-query
+   "name"   users-query
+   "subscribe" users-query
+   "unsubscribe" users-query
+   "quantity" users-query
+   "content" users-query
+   "image"  users-query
+   "update" all-info-query
+   "send"   all-info-query
+   "newstopic" all-info-query
+   "newsquery" user-info-query})
 
+;; End functions for newstexter
 
 ;; Don't edit!
 (defn read-state [state-mgr pmsg]
@@ -574,48 +588,6 @@
         (let [result (<! (invoke system action))]
           (swap! results conj result)))
       @results)))
-
-
-;; Don't edit!
-(defn handle-message
-  "
-    This function orchestrates the processing of incoming messages
-    and glues all of the pieces of the processing pipeline together.
-
-    The basic flow to handle a message is as follows:
-
-    1. Create the router that will be used later to find the
-       function to handle the message
-    2. Parse the message
-    3. Load any saved state that is going to be needed to process
-       the message (e.g., querying the list of experts, etc.)
-    4. Find the function that can handle the message
-    5. Call the handler function with the state from #3 and
-       the message
-    6. Run the different actions that the handler returned...these actions
-       will be bound to different implementations depending on the environemnt
-       (e.g., in test, the actions aren't going to send real text messages)
-    7. Return the string response to the message
-
-  "
-  [{:keys [state-mgr] :as system} src msg]
-  (go
-    (println "=========================================")
-    (println "  Processing:\"" msg "\" from" src)
-    (let [rtr    (create-router routes)
-          _      (println "  Router:" rtr)
-          pmsg   (assoc (parsed-msg msg) :user-id src)
-          _      (println "  Parsed msg:" pmsg)
-          state  (<! (read-state state-mgr pmsg))
-          _      (println "  Read state:" state)
-          hdlr   (rtr pmsg)
-          _      (println "  Hdlr:" hdlr)
-          [as o] (hdlr state pmsg)
-          _      (println "  Hdlr result:" [as o])
-          arslt  (<! (process-actions system as))
-          _      (println "  Action results:" arslt)]
-      (println "=========================================")
-      o)))
 
 ;; Functions for newstexter
 
@@ -722,39 +694,6 @@
         :else [[] "You must enter 'yes' or 'no'."]))
     [[] "User is not registered."]))
 
-
-(defn users-query [state-mgr pmsg]
-  (list! state-mgr [:users]))
-
-(defn user-info-query [state-mgr pmsg]
-  (let [user-id  (:user-id pmsg)]
-    (get! state-mgr [:users user-id])))
-
-(defn all-info-query [state-mgr pmsg]
-  state-mgr)
-
-; (defn conversations-for-user-query [state-mgr pmsg]
-;   (let [user-id (:user-id pmsg)]
-;     (get! state-mgr [:conversations user-id])))
-
-; (defn experts-on-topic-query [state-mgr pmsg]
-;   (let [[topic]  (:args pmsg)]
-;     (list! state-mgr [:expert topic])))
-
-(def queries
-  {"expert" experts-on-topic-query
-   "ask"    experts-on-topic-query
-   "answer" conversations-for-user-query
-   "register" users-query
-   "name"   users-query
-   "subscribe" users-query
-   "unsubscribe" users-query
-   "quantity" users-query
-   "content" users-query
-   "image"  users-query
-   "update" all-info-query
-   "send"   all-info-query})
-
 (def apiKey "4ce6d2e75fe9467fbf5f7bba147274cd")
 
 (defn get-top-articles [topic]
@@ -789,7 +728,7 @@
 
 (defn article-actions-for-users [articles users]
   (let [actions []]
-    (doseq [user users]
+    (doseq [[user-id user] users]
       (let [user-articles []]
         (doseq [topic (keys (:topics user))]
           (concat user-articles (parse-articles (get articles topic) (:quantity user)
@@ -798,7 +737,7 @@
           (let [msg []]
             (doseq [[k v] parsed-article]
               (conj msg (str k ": " v)))
-            (conj actions [(action-send-msg user (string/join "\n" msg))])))))
+            (conj actions [(action-send-msg user-id (string/join "\n" msg))])))))
     (conj actions "Articles sucessfully sent.")))
 
 (defn send-articles [state {:keys [_ user-id]}]
@@ -826,22 +765,21 @@
               (let [msg []]
                 (doseq [[k v] parsed-article]
                   (conj msg (str k ": " v)))
-                (conj actions [(action-send-msg user (string/join "\n" msg))])))
+                (conj actions [(action-send-msg user-id (string/join "\n" msg))])))
             (conj actions "News for topic: " topic "."))))
 
-(defn show-news-for-query [users {:keys [args user-id]}]
+(defn show-news-for-query [user {:keys [args user-id]}]
   (cond
     (or (not args) (not (first args))) [[] "You must enter a query."]
-    (not (contains? users user-id)) [[] "User has not been registered."]
+    (not user) [[] "User has not been registered."]
     :else (let [articles (find-articles args)
-                user (get users user-id)
                 parsed-articles (parse-articles articles (:quantity user) (:content user) (:image user))
                 actions []]
             (doseq [parsed-article parsed-articles]
               (let [msg []]
                 (doseq [[k v] parsed-article]
                   (conj msg (str k ": " v)))
-                (conj actions [(action-send-msg user (string/join "\n" msg))])))
+                (conj actions [(action-send-msg user-id (string/join "\n" msg))])))
             (conj actions "News for query: " (string/join " " args) "."))))
 
 (def routes {"default"  (stateless (fn [& args] "Unknown command."))
@@ -860,4 +798,50 @@
              "content"  set-content
              "image"    set-image
              "update"   update-all-top-articles
-             "send"     send-articles})
+             "send"     send-articles
+             "newstopic" show-news-for-topic
+             "newsquery" show-news-for-query})
+
+;; End functions for newstexter
+
+
+;; Don't edit!
+(defn handle-message
+  "
+    This function orchestrates the processing of incoming messages
+    and glues all of the pieces of the processing pipeline together.
+
+    The basic flow to handle a message is as follows:
+
+    1. Create the router that will be used later to find the
+       function to handle the message
+    2. Parse the message
+    3. Load any saved state that is going to be needed to process
+       the message (e.g., querying the list of experts, etc.)
+    4. Find the function that can handle the message
+    5. Call the handler function with the state from #3 and
+       the message
+    6. Run the different actions that the handler returned...these actions
+       will be bound to different implementations depending on the environemnt
+       (e.g., in test, the actions aren't going to send real text messages)
+    7. Return the string response to the message
+
+  "
+  [{:keys [state-mgr] :as system} src msg]
+  (go
+    (println "=========================================")
+    (println "  Processing:\"" msg "\" from" src)
+    (let [rtr    (create-router routes)
+          _      (println "  Router:" rtr)
+          pmsg   (assoc (parsed-msg msg) :user-id src)
+          _      (println "  Parsed msg:" pmsg)
+          state  (<! (read-state state-mgr pmsg))
+          _      (println "  Read state:" state)
+          hdlr   (rtr pmsg)
+          _      (println "  Hdlr:" hdlr)
+          [as o] (hdlr state pmsg)
+          _      (println "  Hdlr result:" [as o])
+          arslt  (<! (process-actions system as))
+          _      (println "  Action results:" arslt)]
+      (println "=========================================")
+      o)))
