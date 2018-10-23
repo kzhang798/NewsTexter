@@ -614,6 +614,8 @@
 
 ;; @EndFoundCode
 
+;; Takes a prefix list and list of keys and returns a list of actions
+;; to remove the concatenated prefixes and keys
 (defn action-removes [prefix ks]
   (for [k ks] (action-remove (concat prefix [k]))))
 
@@ -625,9 +627,12 @@
               "entertainment"
               "science"})
 
+;; Returns a string of all the topics
 (defn show-topics [_]
   (string/join "\n" topics))
 
+;; Returns actions to register the user if the user inputs valid args
+;; Gives the user the default settings and sets the name to first of args
 (defn add-user [users {:keys [args user-id]}]
   (if (and (<= 1 (count args)) (not (string/blank? (first args))))
     [[(action-insert [:users user-id] {:name (first args)
@@ -638,6 +643,7 @@
      (str user-id " has been added.")]
     [[] "You must enter a valid name."]))
 
+;; Returns actions to change the name of a user
 (defn set-name [users {:keys [args user-id]}]
   (if (contains? users user-id)
     (if (and (<= 1 (count args)) (not (string/blank? (first args))))
@@ -646,6 +652,8 @@
       [[] "You must enter a name."])
     [[] "User is not registered."]))
 
+;; Returns actions to add topics to the map stored at key :topics of a user's settings,
+;; subscribing them to topics
 (defn subscribe [users {:keys [args user-id]}]
   (if (contains? users user-id)
     (if (and (<= 1 (count args)) (not (string/blank? (first args))))
@@ -656,6 +664,8 @@
       [[] "You must choose topics."])
     [[] "User is not registered."]))
 
+;; Returns actions to remove topics from the map stored at key :topics of a user's settings,
+;; unsubscribing them from topics
 (defn unsubscribe [users {:keys [args user-id]}]
   (if (contains? users user-id)
     (if (and (<= 1 (count args)) (not (string/blank? (first args))))
@@ -666,6 +676,7 @@
       [[] "You must choose topics."])
     [[] "User is not registered."]))
 
+;; Returns actions to set the quantity of news a user would like to see, max 10
 (defn set-quantity [users {:keys [args user-id]}]
   (if (contains? users user-id)
     (if (and (= 1 (count args)) (not (string/blank? (first args))) (>= 10 (parse-int (first args))))
@@ -674,6 +685,7 @@
       [[] "You must enter a number less than or equal to 10."])
     [[] "User is not registered."]))
 
+;; Returns actions to set the option to see content about a news article
 (defn set-content [users {:keys [args user-id]}]
   (if (contains? users user-id)
     (if (= 1 (count args))
@@ -686,6 +698,7 @@
       [[] "You must enter 'yes' or 'no'."])
     [[] "User is not registered."]))
 
+;; Returns actions to set the option to see the image related to a news article
 (defn set-image [users {:keys [args user-id]}]
   (if (contains? users user-id)
     (if (= 1 (count args))
@@ -698,21 +711,30 @@
       [[] "You must enter 'yes' or 'no'."])
     [[] "User is not registered."]))
 
+;; My API key for https://newsapi.org/v2
 (def apiKey "4ce6d2e75fe9467fbf5f7bba147274cd")
 
+;; Pulls the top articles for a topic and returns a list of 10 articles
 (defn get-top-articles [topic]
   (get (json/read-json
-         (:body (client/get (str "https://newsapi.org/v2/top-headlines?pageSize=3&country=us&category=" topic
+         (:body (client/get (str "https://newsapi.org/v2/top-headlines?pageSize=10&country=us&category=" topic
                                  "&apiKey=" apiKey)))) "articles"))
 
+;; Pulls articles relevant to a parameter list of query words and returns
+;; a list of 10 articles
 (defn find-articles [query]
   (get (json/read-json
               (:body (client/get
-                      (str "https://newsapi.org/v2/everything?pageSize=3&sources="
+                      (str "https://newsapi.org/v2/everything?pageSize=10&sources="
                            "the-wall-street-journal,the-new-york-times,cnn,msnbc"
                            "&q=" (string/join "%20" query)
                            "&apiKey=" apiKey)))) "articles"))
 
+;; Returns actions to update the state with all the top articles for each of
+;; the possible topics. Only my phone can call this function as a result of
+;; a change in implementation plan. It would be difficult and confusing for me
+;; to figure out how to make this function run on its own at a specific time of
+;; day, so I decided to just text this command myself.
 (defn update-all-top-articles [_ {:keys [_ user-id]}]
  (if (string/includes? user-id "9089388920")
   (let [actions (for [topic topics]
@@ -720,6 +742,9 @@
     (conj [actions] "Daily update complete."))
   [[] "Invalid command."]))
 
+;; Returns a list of articles where unecessary keys and values are removed
+;; depending on the user's preferences given by the quantity, content, and
+;; image parameters. Quantity is an int, content and image are booleans
 (defn parse-articles [articles quantity content image]
   (for [n (range (min (count articles) quantity))]
     (let [article (dissoc (get articles n) "source" "author" "publishedAt")]
@@ -729,6 +754,10 @@
         (not image) (dissoc article "urlToImage")
         :else article))))
 
+;; Gets and processes articles for each user based on their subscriptions,
+;; articles is a map with topics as key and lists of articles as values,
+;; users is a map with user-id as key and each user's settings as values,
+;; returns a list of actions to send texts to each user for each article
 (defn article-actions-for-users [articles users]
   (let [actions (flatten (for [[user-id user] users]
                            (let [user-articles (flatten (for [topic (keys (:topics user))]
@@ -739,6 +768,9 @@
                                  (action-send-msg user-id (string/join "\n" msg)))))))]
     (conj [actions] "Articles successfully sent.")))
 
+;; Calls the article-actions-for-users function to get a list of actions to
+;; take to send texts to users after checking that there are articles and
+;; users stored in the state. In addition, only I can call this function.
 (defn send-articles [state {:keys [_ user-id]}]
   (if (string/includes? user-id "9089388920")
     (let [articles (:articles state)
@@ -749,6 +781,9 @@
         :else (article-actions-for-users articles users)))
     [[] "Invalid command."]))
 
+;; Gets from the stored state if possible a list of articles related to an input
+;; topic, parses them, and returns the actions necessary to send texts to the user
+;; about each article
 (defn show-news-for-topic [state {:keys [args user-id]}]
   (cond
     (not (:articles state)) [[] "No articles are stored."]
@@ -764,6 +799,9 @@
                             (action-send-msg user-id (string/join "\n" msg))))]
             (conj [actions] (str "News for topic: " topic ".")))))
 
+;; Uses the find-articles function to pull article data searched using an input
+;; list of words and returns the actions necessary to send texts to the user
+;; about each article
 (defn show-news-for-query [user {:keys [args user-id]}]
   (cond
     (or (not args) (not (first args))) [[] "You must enter a query."]

@@ -288,7 +288,7 @@
       ;; This result varies, it will be the last message sent to the user since multiple messages are sent for each article
       ;; The result will also depend on the article itself, which may vary from day to day
       ;; THIS SHOULD "FAIL", check the result manually
-      (is (= ""
+      (is (= "This is supposed to fail."
              (<!! (pending-send-msgs system "test-user"))))
       (is (= "User has not been registered."
              (<!! (handle-message
@@ -312,7 +312,7 @@
                    "newstopic technology"))))
       ;; This result again varies, it depends on the last message sent and the article searched for
       ;; THIS SHOULD "FAIL", check result manually
-      (is (= ""
+      (is (= "This is supposed to fail."
              (<!! (pending-send-msgs system "test-user"))))
       (is (= "User has not been registered."
              (<!! (handle-message
@@ -331,5 +331,5 @@
                    "newsquery jeff bezos"))))
       ;; This result also varies, it depends on the last message sent and the article queried
       ;; THIS SHOULD "FAIL", check result manually
-      (is (= ""
+      (is (= "This is supposed to fail."
              (<!! (pending-send-msgs system "test-user")))))))
