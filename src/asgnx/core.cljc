@@ -500,11 +500,11 @@
   (get! state-mgr [:users]))
 
 (defn user-info-query [state-mgr pmsg]
-  (let [user-id  (:user-id pmsg)]
+  (let [user-id (:user-id pmsg)]
     (get! state-mgr [:users user-id])))
 
 (defn all-info-query [state-mgr pmsg]
-  state-mgr)
+  (get! state-mgr nil))
 
 ;; Don't edit!
 (def queries
@@ -615,7 +615,7 @@
 ;; @EndFoundCode
 
 (defn action-removes [prefix ks]
-  (for [k ks] (action-remove (concat prefix k))))
+  (for [k ks] (action-remove (concat prefix [k]))))
 
 (def topics #{"general"
               "technology"
@@ -679,9 +679,9 @@
     (if (= 1 (count args))
       (cond
         (= "yes" (string/lower-case (first args))) [[(action-insert [:users user-id :content] true)]
-                                                    (str user-id " has changed content setting.")]
+                                                    (str user-id " has changed content setting to true.")]
         (= "no" (string/lower-case (first args))) [[(action-insert [:users user-id :content] false)]
-                                                   (str user-id " has changed content setting.")]
+                                                   (str user-id " has changed content setting to false.")]
         :else [[] "You must enter 'yes' or 'no'."])
       [[] "You must enter 'yes' or 'no'."])
     [[] "User is not registered."]))
@@ -691,9 +691,9 @@
     (if (= 1 (count args))
       (cond
         (= "yes" (string/lower-case (first args))) [[(action-insert [:users user-id :image] true)]
-                                                    (str user-id " has changed image setting.")]
+                                                    (str user-id " has changed image setting to true.")]
         (= "no" (string/lower-case (first args))) [[(action-insert [:users user-id :image] false)]
-                                                   (str user-id " has changed image setting.")]
+                                                   (str user-id " has changed image setting to false.")]
         :else [[] "You must enter 'yes' or 'no'."])
       [[] "You must enter 'yes' or 'no'."])
     [[] "User is not registered."]))
@@ -702,13 +702,13 @@
 
 (defn get-top-articles [topic]
   (get (json/read-json
-         (:body (client/get (str "https://newsapi.org/v2/top-headlines?country=us&category=" topic
+         (:body (client/get (str "https://newsapi.org/v2/top-headlines?pageSize=3&country=us&category=" topic
                                  "&apiKey=" apiKey)))) "articles"))
 
 (defn find-articles [query]
   (get (json/read-json
               (:body (client/get
-                      (str "https://newsapi.org/v2/everything?sources="
+                      (str "https://newsapi.org/v2/everything?pageSize=3&sources="
                            "the-wall-street-journal,the-new-york-times,cnn,msnbc"
                            "&q=" (string/join "%20" query)
                            "&apiKey=" apiKey)))) "articles"))
@@ -737,14 +737,14 @@
                              (for [parsed-article user-articles]
                                (let [msg (for [[k v] parsed-article] (str k ": " v))]
                                  (action-send-msg user-id (string/join "\n" msg)))))))]
-    (conj [actions] "Articles sucessfully sent.")))
+    (conj [actions] "Articles successfully sent.")))
 
 (defn send-articles [state {:keys [_ user-id]}]
   (if (string/includes? user-id "9089388920")
     (let [articles (:articles state)
           users (:users state)]
       (cond
-        (not articles) [[] "There are no articles."]
+        (not articles) [[] (str state)]
         (not users) [[] "There are no registered users."]
         :else (article-actions-for-users articles users)))
     [[] "Invalid command."]))
@@ -753,7 +753,7 @@
   (cond
     (not (:articles state)) [[] "No articles are stored."]
     (not (contains? (:users state) user-id)) [[] "User has not been registered."]
-    (< 1 (count args)) [[] "You must enter one topic."]
+    (not= 1 (count args)) [[] "You must enter one topic."]
     (not (contains? topics (first args))) [[] "You must enter a valid topic."]
     :else (let [topic (first args)
                 articles (get (:articles state) topic)

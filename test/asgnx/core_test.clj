@@ -186,102 +186,150 @@
           smgr   (kvstore/create state)
           system {:state-mgr smgr
                   :effect-handlers ehdlrs}]
-      (is (= "There are no experts on that topic."
+      (is (= "You must enter a valid name."
              (<!! (handle-message
                     system
                     "test-user"
-                    "ask food best burger in nashville"))))
-      (is (= "test-user is now an expert on food."
+                    "register"))))
+      (is (= "test-user has been added."
              (<!! (handle-message
                     system
                     "test-user"
-                    "expert food"))))
-      (is (= "Asking 1 expert(s) for an answer to: \"what burger\""
+                    "register firstname"))))
+      ;; "User is not registered" needs only to be testd once
+      ;; although it appears in other functions because the
+      ;; implementation is the same for the first few functions.
+      (is (= "User is not registered."
+             (<!! (handle-message
+                    system
+                    "not-test-user"
+                    "name firstname"))))
+      (is (= "You must enter a name."
              (<!! (handle-message
                     system
                     "test-user"
-                    "ask food what burger"))))
-      (is (= "what burger"
-             (<!! (pending-send-msgs system "test-user"))))
-      (is (= "test-user2 is now an expert on food."
-             (<!! (handle-message
-                    system
-                    "test-user2"
-                    "expert food"))))
-      (is (= "Asking 2 expert(s) for an answer to: \"what burger\""
+                    "name"))))
+      ;; The same goes for "invalid topics".
+      (is (= "Invalid topics."
              (<!! (handle-message
                     system
                     "test-user"
-                    "ask food what burger"))))
-      (is (= "what burger"
-             (<!! (pending-send-msgs system "test-user"))))
-      (is (= "what burger"
-             (<!! (pending-send-msgs system "test-user2"))))
-      (is (= "You must ask a valid question."
+                    "subscribe technology random"))))
+      (is (= "test-user has subscribed to: technology, business."
              (<!! (handle-message
                     system
                     "test-user"
-                    "ask food "))))
-      (is (= "test-user is now an expert on nashville."
+                    "subscribe technology business"))))
+      (is (= "test-user has unsubscribed from: business, technology."
              (<!! (handle-message
                     system
                     "test-user"
-                    "expert nashville"))))
-      (is (= "Asking 1 expert(s) for an answer to: \"what bus\""
+                    "unsubscribe business technology"))))
+      (is (= "You must enter a number less than or equal to 10."
              (<!! (handle-message
                     system
-                    "test-user2"
-                    "ask nashville what bus"))))
-      (is (= "what bus"
-             (<!! (pending-send-msgs system "test-user"))))
-      (is (= "Your answer was sent."
+                    "test-user"
+                    "quantity 11"))))
+      (is (= "test-user has updated news quantity to: 2."
              (<!! (handle-message
                    system
                    "test-user"
-                   "answer the blue bus"))))
-      (is (= "the blue bus"
-             (<!! (pending-send-msgs system "test-user2"))))
-      (is (= "You did not provide an answer."
+                   "quantity 2"))))
+      (is (= "You must enter 'yes' or 'no'."
              (<!! (handle-message
                    system
                    "test-user"
-                   "answer"))))
-      (is (= "You haven't been asked a question."
+                   "content yes no"))))
+      (is (= "test-user has changed content setting to true."
              (<!! (handle-message
                    system
-                   "test-user3"
-                   "answer the blue bus")))))))
-
-;; newstexter tests
-(add-user {} {:args [] :user-id "test"})
-(add-user {} {:args [""] :user-id "test"})
-(add-user {} {:args ["test-user"] :user-id "test"})
-(set-name {"test" "data"} {:args [] :user-id "tes"})
-(set-name {"test" "data"} {:args [] :user-id "test"})
-(set-name {"test" "data"} {:args ["firstname" "lastname"] :user-id "test"})
-(subscribe {"test" "data"} {:args [] :user-id "tes"})
-(subscribe {"test" "data"} {:args [] :user-id "test"})
-(subscribe {"test" "data"} {:args ["random" "technology"] :user-id "test"})
-(subscribe {"test" "data"} {:args ["technology" "business"] :user-id "test"})
-(unsubscribe {"test" "data"} {:args [] :user-id "tes"})
-(unsubscribe {"test" "data"} {:args [] :user-id "test"})
-(unsubscribe {"test" "data"} {:args ["random" "technology"] :user-id "test"})
-(unsubscribe {"test" "data"} {:args ["technology" "business"] :user-id "test"})
-(set-quantity {"test" "data"} {:args [] :user-id "tes"})
-(set-quantity {"test" "data"} {:args [] :user-id "test"})
-(set-quantity {"test" "data"} {:args [""] :user-id "test"})
-(set-quantity {"test" "data"} {:args ["11"] :user-id "test"})
-(set-quantity {"test" "data"} {:args ["10"] :user-id "test"})
-(set-content {"test" "data"} {:args [] :user-id "tes"})
-(set-content {"test" "data"} {:args ["yes" "no"] :user-id "test"})
-(set-content {"test" "data"} {:args ["yesandno"] :user-id "test"})
-(set-content {"test" "data"} {:args ["yes"] :user-id "test"})
-(set-content {"test" "data"} {:args ["no"] :user-id "test"})
-(set-image {"test" "data"} {:args [] :user-id "tes"})
-(set-image {"test" "data"} {:args ["yes" "no"] :user-id "test"})
-(set-image {"test" "data"} {:args ["yesandno"] :user-id "test"})
-(set-image {"test" "data"} {:args ["yes"] :user-id "test"})
-(set-image {"test" "data"} {:args ["no"] :user-id "test"})
-(get-top-articles "general") ;compare to accessing the url through browser
-(find-articles ["donald" "trump"]) ;compare to accessing the url through browser
-(show-news-for-query {:quantity 3 :content true :image true} {:args ["donald" "trump"] :user-id "test"})
+                   "test-user"
+                   "content yes"))))
+      (is (= "test-user has changed content setting to false."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "content no"))))
+      (is (= "You must enter 'yes' or 'no'."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "image yesandno"))))
+      (is (= "test-user has changed image setting to true."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "image yes"))))
+      (is (= "test-user has changed image setting to false."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "image no"))))
+      (is (= "Invalid command."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "update"))))
+      (is (= "Daily update complete."
+             (<!! (handle-message
+                   system
+                   "9089388920"
+                   "update"))))
+      (is (= "Invalid command."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "send"))))
+      (is (= "Articles successfully sent."
+             (<!! (handle-message
+                   system
+                   "9089388920"
+                   "send"))))
+      ;; This result varies, it will be the last message sent to the user since multiple messages are sent for each article
+      ;; The result will also depend on the article itself, which may vary from day to day
+      ;; THIS SHOULD "FAIL", check the result manually
+      (is (= ""
+             (<!! (pending-send-msgs system "test-user"))))
+      (is (= "User has not been registered."
+             (<!! (handle-message
+                   system
+                   "not-test-user"
+                   "newstopic"))))
+      (is (= "You must enter one topic."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "newstopic technology business"))))
+      (is (= "You must enter a valid topic."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "newstopic random"))))
+      (is (= "News for topic: technology."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "newstopic technology"))))
+      ;; This result again varies, it depends on the last message sent and the article searched for
+      ;; THIS SHOULD "FAIL", check result manually
+      (is (= ""
+             (<!! (pending-send-msgs system "test-user"))))
+      (is (= "User has not been registered."
+             (<!! (handle-message
+                   system
+                   "not-test-user"
+                   "newsquery something"))))
+      (is (= "You must enter a query."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "newsquery"))))
+      (is (= "News for query: jeff bezos."
+             (<!! (handle-message
+                   system
+                   "test-user"
+                   "newsquery jeff bezos"))))
+      ;; This result also varies, it depends on the last message sent and the article queried
+      ;; THIS SHOULD "FAIL", check result manually
+      (is (= ""
+             (<!! (pending-send-msgs system "test-user")))))))
