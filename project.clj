@@ -9,7 +9,7 @@
                            [thheller/shadow-cljs "2.4.33"]
                            [cljsjs/aws-sdk-js "2.94.0-0"]
                            [clj-http "3.9.1"]
-                           [org.clojure/data.json "0.2.6"]
+                           [cheshire "5.8.1"]
                            [io.nervous/cljs-lambda "0.3.5"
                             :exclusions [org.clojure/tools.reader
                                          org.clojure/clojurescript

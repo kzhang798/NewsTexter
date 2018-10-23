@@ -4,7 +4,7 @@
             [asgnx.kvstore :as kvstore
              :refer [put! get! list! remove!]]
             [clj-http.client :as client]
-            [clojure.data.json :as json]))
+            [asgnx.json :as json]))
 
 
 ;; Do not edit!
@@ -634,6 +634,14 @@
 ;   {:action :dissoc-in
 ;    :ks ks})
 
+;; @FoundCode
+;; https://stackoverflow.com/questions/5621279/in-clojure-how-can-i-convert-a-string-to-a-number
+
+(defn parse-int [s]
+   (Integer. (re-find  #"\d+" s)))
+
+;; @EndFoundCode
+
 (defn action-removes [prefix ks]
   (for [k ks] (action-remove (concat prefix k))))
 
@@ -645,16 +653,19 @@
               "entertainment"
               "science"})
 
+(defn show-topics [_]
+  (string/join "\n" topics))
+
 (defn add-user [users {:keys [args user-id]}]
   [[(action-insert [:users user-id] {:name (first args)
-                                     :topics {}
-                                     :quantity 5
-                                     :content "no"
-                                     :image "no"})]
+                                     :topics {"general" ""}
+                                     :quantity 3
+                                     :content false
+                                     :image false})]
    (str user-id " has been added.")])
 
 (defn set-name [users {:keys [args user-id]}]
-  (if (contains? user-id users)
+  (if (contains? users user-id)
     (if (and (<= 1 (count args)) (first args))
       [[(action-insert [:users user-id :name] (string/join args))]
        (str user-id " has set name to \"" (string/join args) "\".")]
@@ -662,7 +673,7 @@
     [[] "User is not registered."]))
 
 (defn subscribe [users {:keys [args user-id]}]
-  (if (contains? user-id users)
+  (if (contains? users user-id)
     (if (and (<= 1 (count args)) (first args))
       (if (every? topics args)
         [(action-inserts [:users user-id :topics] args "")
@@ -672,7 +683,7 @@
     [[] "User is not registered."]))
 
 (defn unsubscribe [users {:keys [args user-id]}]
-  (if (contains? user-id users)
+  (if (contains? users user-id)
     (if (and (<= 1 (count args)) (first args))
       (if (every? topics args)
         [(action-removes [:users user-id :topics] args)
@@ -682,15 +693,15 @@
     [[] "User is not registered."]))
 
 (defn set-quantity [users {:keys [args user-id]}]
-  (if (contains? user-id users)
-    (if (= 1 (count args))
+  (if (contains? users user-id)
+    (if (and (= 1 (count args) (> 10 (parse-int (first args)))))
       [[(action-insert [:users user-id :quantity] (first args))]
        (str user-id " has updated news quantity.")]
-      [[] "You must enter one number."])
+      [[] "You must enter a number less than 10."])
     [[] "User is not registered."]))
 
 (defn set-content [users {:keys [args user-id]}]
-  (if (contains? user-id users)
+  (if (contains? users user-id)
     (if (= 1 (count args))
       (cond
         (= "yes" (string/lower-case (first args))) [[(action-insert [:users user-id :content] true)]
@@ -701,7 +712,7 @@
     [[] "User is not registered."]))
 
 (defn set-image [users {:keys [args user-id]}]
-  (if (contains? user-id users)
+  (if (contains? users user-id)
     (if (= 1 (count args))
       (cond
         (= "yes" (string/lower-case (first args))) [[(action-insert [:users user-id :image] true)]
@@ -718,6 +729,9 @@
 (defn user-info-query [state-mgr pmsg]
   (let [user-id  (:user-id pmsg)]
     (get! state-mgr [:users user-id])))
+
+(defn all-info-query [state-mgr pmsg]
+  state-mgr)
 
 ; (defn conversations-for-user-query [state-mgr pmsg]
 ;   (let [user-id (:user-id pmsg)]
@@ -737,50 +751,32 @@
    "unsubscribe" users-query
    "quantity" users-query
    "content" users-query
-   "image"  users-query})
-
-(def routes {"default"  (stateless (fn [& args] "Unknown command."))
-             "welcome"  (stateless welcome)
-             "homepage" (stateless homepage)
-             "office"   (stateless office-hours)
-             "expert"   add-expert
-             "ask"      ask-experts
-             "answer"   answer-question
-             "register" add-user
-             "name"     set-name
-             "subscribe" subscribe
-             "unsubscribe" unsubscribe
-             "quantity" set-quantity
-             "content"  set-content
-             "image"    set-image})
+   "image"  users-query
+   "update" all-info-query
+   "send"   all-info-query})
 
 (def apiKey "4ce6d2e75fe9467fbf5f7bba147274cd")
 
-(defn get-top-articles
-  ([topic]
-   (if (not= topic "students")
-     (get (json/read-str
-            (:body (client/get (str "https://newsapi.org/v2/top-headlines?country=us&category=" topic
-                                    "&apiKey=" apiKey)))) "articles")
-     []))
-  ([]
-   (get (json/read-str
-          (:body (client/get (str "https://newsapi.org/v2/top-headlines?country=us&apiKey="
-                                  apiKey)))) "articles")))
+(defn get-top-articles [topic]
+  (get (json/read-json
+         (:body (client/get (str "https://newsapi.org/v2/top-headlines?country=us&category=" topic
+                                 "&apiKey=" apiKey)))) "articles"))
 
 (defn find-articles [query]
-  (get (json/read-str
+  (get (json/read-json
               (:body (client/get
                       (str "https://newsapi.org/v2/everything?sources="
                            "the-wall-street-journal,the-new-york-times,cnn,msnbc"
                            "&q=" (string/join "%20" query)
                            "&apiKey=" apiKey)))) "articles"))
 
-(defn update-all-top-articles [& args]
-  (let [actions [[(action-insert [:articles "general"] (get-top-articles))]]]
+(defn update-all-top-articles [_ {:keys [_ user-id]}]
+ (if (string/includes? user-id "9089388920")
+  (let [actions []]
     (doseq [topic topics]
       (conj actions [(action-insert [:articles topic] (get-top-articles topic))]))
-    actions))
+    (conj actions "Daily update complete."))
+  [[] "Invalid command."]))
 
 (defn parse-articles [articles quantity content image]
   (for [n (range (min (count articles) quantity))]
@@ -790,3 +786,78 @@
         (not content) (dissoc article "content")
         (not image) (dissoc article "urlToImage")
         :else article))))
+
+(defn article-actions-for-users [articles users]
+  (let [actions []]
+    (doseq [user users]
+      (let [user-articles []]
+        (doseq [topic (keys (:topics user))]
+          (concat user-articles (parse-articles (get articles topic) (:quantity user)
+                                                (:content user) (:image user))))
+        (doseq [parsed-article user-articles]
+          (let [msg []]
+            (doseq [[k v] parsed-article]
+              (conj msg (str k ": " v)))
+            (conj actions [(action-send-msg user (string/join "\n" msg))])))))
+    (conj actions "Articles sucessfully sent.")))
+
+(defn send-articles [state {:keys [_ user-id]}]
+  (if (string/includes? user-id "9089388920")
+    (let [articles (:articles state)
+          users (:users state)]
+      (cond
+        (not articles) [[] "There are no articles."]
+        (not users) [[] "There are no registered users."]
+        :else (article-actions-for-users articles users)))
+    [[] "Invalid command."]))
+
+(defn show-news-for-topic [state {:keys [args user-id]}]
+  (cond
+    (not (:articles state)) [[] "No articles are stored."]
+    (not (contains? (:users state) user-id)) [[] "User has not been registered."]
+    (< 1 (count args)) [[] "You must enter one topic."]
+    (not (contains? topics (first args))) [[] "You must enter a valid topic."]
+    :else (let [topic (first args)
+                articles (get (:articles state) topic)
+                user (get (:users state) user-id)
+                parsed-articles (parse-articles articles (:quantity user) (:content user) (:image user))
+                actions []]
+            (doseq [parsed-article parsed-articles]
+              (let [msg []]
+                (doseq [[k v] parsed-article]
+                  (conj msg (str k ": " v)))
+                (conj actions [(action-send-msg user (string/join "\n" msg))])))
+            (conj actions "News for topic: " topic "."))))
+
+(defn show-news-for-query [users {:keys [args user-id]}]
+  (cond
+    (or (not args) (not (first args))) [[] "You must enter a query."]
+    (not (contains? users user-id)) [[] "User has not been registered."]
+    :else (let [articles (find-articles args)
+                user (get users user-id)
+                parsed-articles (parse-articles articles (:quantity user) (:content user) (:image user))
+                actions []]
+            (doseq [parsed-article parsed-articles]
+              (let [msg []]
+                (doseq [[k v] parsed-article]
+                  (conj msg (str k ": " v)))
+                (conj actions [(action-send-msg user (string/join "\n" msg))])))
+            (conj actions "News for query: " (string/join " " args) "."))))
+
+(def routes {"default"  (stateless (fn [& args] "Unknown command."))
+             "welcome"  (stateless welcome)
+             "homepage" (stateless homepage)
+             "office"   (stateless office-hours)
+             "topics"   (stateless show-topics)
+             "expert"   add-expert
+             "ask"      ask-experts
+             "answer"   answer-question
+             "register" add-user
+             "name"     set-name
+             "subscribe" subscribe
+             "unsubscribe" unsubscribe
+             "quantity" set-quantity
+             "content"  set-content
+             "image"    set-image
+             "update"   update-all-top-articles
+             "send"     send-articles})
