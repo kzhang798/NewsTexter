@@ -731,18 +731,14 @@
         :else article))))
 
 (defn article-actions-for-users [articles users]
-  (let [actions []]
-    (doseq [[user-id user] users]
-      (let [user-articles []]
-        (doseq [topic (keys (:topics user))]
-          (concat user-articles (parse-articles (get articles topic) (:quantity user)
-                                                (:content user) (:image user))))
-        (doseq [parsed-article user-articles]
-          (let [msg []]
-            (doseq [[k v] parsed-article]
-              (conj msg (str k ": " v)))
-            (conj actions [(action-send-msg user-id (string/join "\n" msg))])))))
-    (conj actions "Articles sucessfully sent.")))
+  (let [actions (flatten (for [[user-id user] users]
+                           (let [user-articles (flatten (for [topic (keys (:topics user))]
+                                                          (parse-articles (get articles topic) (:quantity user)
+                                                                          (:content user) (:image user))))]
+                             (for [parsed-article user-articles]
+                               (let [msg (for [[k v] parsed-article] (str k ": " v))]
+                                 (action-send-msg user-id (string/join "\n" msg)))))))]
+    (conj [actions] "Articles sucessfully sent.")))
 
 (defn send-articles [state {:keys [_ user-id]}]
   (if (string/includes? user-id "9089388920")
@@ -764,13 +760,10 @@
                 articles (get (:articles state) topic)
                 user (get (:users state) user-id)
                 parsed-articles (parse-articles articles (:quantity user) (:content user) (:image user))
-                actions []]
-            (doseq [parsed-article parsed-articles]
-              (let [msg []]
-                (doseq [[k v] parsed-article]
-                  (conj msg (str k ": " v)))
-                (conj actions [(action-send-msg user-id (string/join "\n" msg))])))
-            (conj actions "News for topic: " topic "."))))
+                actions (for [parsed-article parsed-articles]
+                          (let [msg (for [[k v] parsed-article] (str k ": " v))]
+                            (action-send-msg user-id (string/join "\n" msg))))]
+            (conj [actions] (str "News for topic: " topic ".")))))
 
 (defn show-news-for-query [user {:keys [args user-id]}]
   (cond
@@ -778,13 +771,10 @@
     (not user) [[] "User has not been registered."]
     :else (let [articles (find-articles args)
                 parsed-articles (parse-articles articles (:quantity user) (:content user) (:image user))
-                actions []]
-            (doseq [parsed-article parsed-articles]
-              (let [msg []]
-                (doseq [[k v] parsed-article]
-                  (conj msg (str k ": " v)))
-                (conj actions [(action-send-msg user-id (string/join "\n" msg))])))
-            (conj actions "News for query: " (string/join " " args) "."))))
+                actions (for [parsed-article parsed-articles]
+                          (let [msg (for [[k v] parsed-article] (str k ": " v))]
+                            (action-send-msg user-id (string/join "\n" msg))))]
+            (conj [actions] (str "News for query: " (string/join " " args) ".")))))
 
 (def routes {"default"  (stateless (fn [& args] "Unknown command."))
              "welcome"  (stateless welcome)

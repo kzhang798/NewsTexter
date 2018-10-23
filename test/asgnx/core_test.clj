@@ -284,3 +284,4 @@
 (set-image {"test" "data"} {:args ["no"] :user-id "test"})
 (get-top-articles "general") ;compare to accessing the url through browser
 (find-articles ["donald" "trump"]) ;compare to accessing the url through browser
+(show-news-for-query {:quantity 3 :content true :image true} {:args ["donald" "trump"] :user-id "test"})
