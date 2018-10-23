@@ -497,7 +497,7 @@
 
 ;; Functions for newstexter
 (defn users-query [state-mgr pmsg]
-  (list! state-mgr [:users]))
+  (get! state-mgr [:users]))
 
 (defn user-info-query [state-mgr pmsg]
   (let [user-id  (:user-id pmsg)]
@@ -629,47 +629,49 @@
   (string/join "\n" topics))
 
 (defn add-user [users {:keys [args user-id]}]
-  [[(action-insert [:users user-id] {:name (first args)
-                                     :topics {"general" ""}
-                                     :quantity 3
-                                     :content false
-                                     :image false})]
-   (str user-id " has been added.")])
+  (if (and (<= 1 (count args)) (not (string/blank? (first args))))
+    [[(action-insert [:users user-id] {:name (first args)
+                                       :topics {"general" ""}
+                                       :quantity 3
+                                       :content false
+                                       :image false})]
+     (str user-id " has been added.")]
+    [[] "You must enter a valid name."]))
 
 (defn set-name [users {:keys [args user-id]}]
   (if (contains? users user-id)
-    (if (and (<= 1 (count args)) (first args))
-      [[(action-insert [:users user-id :name] (string/join args))]
-       (str user-id " has set name to \"" (string/join args) "\".")]
+    (if (and (<= 1 (count args)) (not (string/blank? (first args))))
+      [[(action-insert [:users user-id :name] (string/join " " args))]
+       (str user-id " has set name to: " (string/join " " args) ".")]
       [[] "You must enter a name."])
     [[] "User is not registered."]))
 
 (defn subscribe [users {:keys [args user-id]}]
   (if (contains? users user-id)
-    (if (and (<= 1 (count args)) (first args))
+    (if (and (<= 1 (count args)) (not (string/blank? (first args))))
       (if (every? topics args)
         [(action-inserts [:users user-id :topics] args "")
-         (str user-id " has subscribed to topics.")]
+         (str user-id " has subscribed to: " (string/join ", " args) ".")]
         [[] "Invalid topics."])
       [[] "You must choose topics."])
     [[] "User is not registered."]))
 
 (defn unsubscribe [users {:keys [args user-id]}]
   (if (contains? users user-id)
-    (if (and (<= 1 (count args)) (first args))
+    (if (and (<= 1 (count args)) (not (string/blank? (first args))))
       (if (every? topics args)
         [(action-removes [:users user-id :topics] args)
-         (str user-id " has unsubscribed from topics.")]
+         (str user-id " has unsubscribed from: " (string/join ", " args) ".")]
         [[] "Invalid topics."])
       [[] "You must choose topics."])
     [[] "User is not registered."]))
 
 (defn set-quantity [users {:keys [args user-id]}]
   (if (contains? users user-id)
-    (if (and (= 1 (count args) (> 10 (parse-int (first args)))))
-      [[(action-insert [:users user-id :quantity] (first args))]
-       (str user-id " has updated news quantity.")]
-      [[] "You must enter a number less than 10."])
+    (if (and (= 1 (count args)) (not (string/blank? (first args))) (>= 10 (parse-int (first args))))
+      [[(action-insert [:users user-id :quantity] (parse-int (first args)))]
+       (str user-id " has updated news quantity to: " (first args) ".")]
+      [[] "You must enter a number less than or equal to 10."])
     [[] "User is not registered."]))
 
 (defn set-content [users {:keys [args user-id]}]
@@ -680,7 +682,8 @@
                                                     (str user-id " has changed content setting.")]
         (= "no" (string/lower-case (first args))) [[(action-insert [:users user-id :content] false)]
                                                    (str user-id " has changed content setting.")]
-        :else [[] "You must enter 'yes' or 'no'."]))
+        :else [[] "You must enter 'yes' or 'no'."])
+      [[] "You must enter 'yes' or 'no'."])
     [[] "User is not registered."]))
 
 (defn set-image [users {:keys [args user-id]}]
@@ -691,7 +694,8 @@
                                                     (str user-id " has changed image setting.")]
         (= "no" (string/lower-case (first args))) [[(action-insert [:users user-id :image] false)]
                                                    (str user-id " has changed image setting.")]
-        :else [[] "You must enter 'yes' or 'no'."]))
+        :else [[] "You must enter 'yes' or 'no'."])
+      [[] "You must enter 'yes' or 'no'."])
     [[] "User is not registered."]))
 
 (def apiKey "4ce6d2e75fe9467fbf5f7bba147274cd")

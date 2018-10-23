@@ -251,3 +251,36 @@
                    system
                    "test-user3"
                    "answer the blue bus")))))))
+
+;; newstexter tests
+(add-user {} {:args [] :user-id "test"})
+(add-user {} {:args [""] :user-id "test"})
+(add-user {} {:args ["test-user"] :user-id "test"})
+(set-name {"test" "data"} {:args [] :user-id "tes"})
+(set-name {"test" "data"} {:args [] :user-id "test"})
+(set-name {"test" "data"} {:args ["firstname" "lastname"] :user-id "test"})
+(subscribe {"test" "data"} {:args [] :user-id "tes"})
+(subscribe {"test" "data"} {:args [] :user-id "test"})
+(subscribe {"test" "data"} {:args ["random" "technology"] :user-id "test"})
+(subscribe {"test" "data"} {:args ["technology" "business"] :user-id "test"})
+(unsubscribe {"test" "data"} {:args [] :user-id "tes"})
+(unsubscribe {"test" "data"} {:args [] :user-id "test"})
+(unsubscribe {"test" "data"} {:args ["random" "technology"] :user-id "test"})
+(unsubscribe {"test" "data"} {:args ["technology" "business"] :user-id "test"})
+(set-quantity {"test" "data"} {:args [] :user-id "tes"})
+(set-quantity {"test" "data"} {:args [] :user-id "test"})
+(set-quantity {"test" "data"} {:args [""] :user-id "test"})
+(set-quantity {"test" "data"} {:args ["11"] :user-id "test"})
+(set-quantity {"test" "data"} {:args ["10"] :user-id "test"})
+(set-content {"test" "data"} {:args [] :user-id "tes"})
+(set-content {"test" "data"} {:args ["yes" "no"] :user-id "test"})
+(set-content {"test" "data"} {:args ["yesandno"] :user-id "test"})
+(set-content {"test" "data"} {:args ["yes"] :user-id "test"})
+(set-content {"test" "data"} {:args ["no"] :user-id "test"})
+(set-image {"test" "data"} {:args [] :user-id "tes"})
+(set-image {"test" "data"} {:args ["yes" "no"] :user-id "test"})
+(set-image {"test" "data"} {:args ["yesandno"] :user-id "test"})
+(set-image {"test" "data"} {:args ["yes"] :user-id "test"})
+(set-image {"test" "data"} {:args ["no"] :user-id "test"})
+(get-top-articles "general") ;compare to accessing the url through browser
+(find-articles ["donald" "trump"]) ;compare to accessing the url through browser
