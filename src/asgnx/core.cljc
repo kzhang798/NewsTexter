@@ -715,10 +715,9 @@
 
 (defn update-all-top-articles [_ {:keys [_ user-id]}]
  (if (string/includes? user-id "9089388920")
-  (let [actions []]
-    (doseq [topic topics]
-      (conj actions [(action-insert [:articles topic] (get-top-articles topic))]))
-    (conj actions "Daily update complete."))
+  (let [actions (for [topic topics]
+                  (action-insert [:articles topic] (get-top-articles topic)))]
+    (conj [actions] "Daily update complete."))
   [[] "Invalid command."]))
 
 (defn parse-articles [articles quantity content image]
